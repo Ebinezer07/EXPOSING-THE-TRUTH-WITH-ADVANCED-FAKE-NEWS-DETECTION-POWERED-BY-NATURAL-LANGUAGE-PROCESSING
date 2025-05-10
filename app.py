@@ -1,71 +1,52 @@
 import streamlit as st
-import pandas as pd
-import re
-import nltk
-import joblib
-from nltk.corpus import stopwords
-from nltk.stem.porter import PorterStemmer
+from transformers import pipeline
 
-# Download stopwords
-nltk.download('stopwords')
-stop_words = set(stopwords.words('english'))
-
-# Clean input text
-def clean_text(text):
-    ps = PorterStemmer()
-    text = re.sub('[^a-zA-Z]', ' ', str(text))
-    text = text.lower()
-    words = text.split()
-    words = [ps.stem(word) for word in words if word not in stop_words]
-    return ' '.join(words)
-
-# Load pre-trained model and vectorizer
-import pickle
-
-# Load the trained model and vectorizer
-model = pickle.load(open('fake_news_model.pkl', 'rb'))
-vectorizer = pickle.load(open('vectorizer.pkl', 'rb'))
-
-# Get user input
-text = [input("Enter your news text:\n")]
-
-# Transform the input text using the vectorizer
-vect = vectorizer.transform(text)
-
-# Predict using the model
-result = model.predict(vect)
-
-# Display the result
-print(result)
-
-
-if label == "FAKE":
-    print("❌ This article appears to be FAKE.")
-else:
-    print("✅ This article appears to be REAL.")
-
+# Cache the model to avoid reloading on every prediction
+@st.cache_resource
+def load_model():
+    # Load the pre-trained BERT model for fake news detection from Hugging Face
+    return pipeline("text-classification", model="mrm8488/bert-tiny-finetuned-fake-news")
 
 # Streamlit interface
 def main():
-    st.title("📰 Fake News Detector (Pretrained)")
+    # Load the pre-trained model
+    classifier = load_model()
+
+    # Set the title and description of the app
+    st.title("📰 Fake News Detector (BERT-based)")
     st.markdown("Paste a news article to detect if it's **Real** or **Fake**.")
 
-    model, vectorizer = load_model()
+    # Input field for news article
+    user_input = st.text_area("✏️ Paste your news article here:")
 
-    user_input = st.text_area("✏️ Paste your news article:")
-
+    # Prediction button
     if st.button("🔍 Predict"):
         if not user_input.strip():
             st.warning("Please enter some text.")
         else:
-            cleaned = clean_text(user_input)
-            input_vectorized = vectorizer.transform([cleaned]).toarray()
-            prediction = model.predict(input_vectorized)[0]
+            # Show loading spinner
+            with st.spinner("Analyzing... Please wait."):
 
-            if prediction == 1:
-                st.error("🚨 This looks like **Fake News**.")
-            else:
-                st.success("✅ This appears to be **Real News**.")
+                # Get prediction from the BERT model
+                result = classifier(user_input)[0]
+
+                # Extract label (prediction) and confidence score
+                label = result['label']
+                score = result['score']
+
+                # Display the prediction result
+                st.write(f"🧠 **Prediction**: {label}")
+                st.write(f"🔍 **Confidence Score**: {score:.2f}")
+
+                # Display the result in a user-friendly format
+                if label == "FAKE":
+                    st.error("🚨 This looks like **Fake News**.")
+                else:
+                    st.success("✅ This appears to be **Real News**.")
+
+    # Clear button to reset the input field
+    if st.button("❌ Clear Text"):
+        st.experimental_rerun()
 
 if __name__ == "__main__":
     main()
