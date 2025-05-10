@@ -17,16 +17,19 @@ def load_data(file_hash):
     try:
         df = pd.read_csv("small_file.csv")
         
+        # Print out the actual columns to help debug
+        st.write(f"Found columns: {df.columns.tolist()}")
+
         # Check if the necessary columns are present
-        expected_cols = df.columns.str.lower().tolist()
         text_col = next((col for col in df.columns if col.lower() == 'text'), None)
         label_col = next((col for col in df.columns if col.lower() == 'label'), None)
 
+        # If not found, show an error message
         if not text_col or not label_col:
             st.error(f"❌ CSV must contain 'text' and 'label' columns. Found: {df.columns.tolist()}")
             return pd.DataFrame()  # Return empty DataFrame
 
-        # Rename columns to expected names
+        # Rename columns to expected names (in case of variations in column names)
         df = df.rename(columns={text_col: "text", label_col: "label"})
         return df
 
