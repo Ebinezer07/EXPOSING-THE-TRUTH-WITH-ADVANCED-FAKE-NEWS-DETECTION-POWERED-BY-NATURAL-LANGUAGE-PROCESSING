@@ -1,49 +1,39 @@
-import pandas as pd
 import streamlit as st
-from sklearn.model_selection import train_test_split
+import pandas as pd
+import re
+import nltk
+from nltk.corpus import stopwords
+from nltk.stem.porter import PorterStemmer
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
-import hashlib
 
-# Function to create a hash of the file to detect changes and clear cache
-def get_file_hash(file_path):
-    with open(file_path, "rb") as f:
-        return hashlib.md5(f.read()).hexdigest()
+# Download NLTK stopwords (only needed once)
+nltk.download('stopwords')
 
-# Load data with caching
+# Load stopwords once
+stop_words = set(stopwords.words('english'))
+
+# Function to clean the text
+def clean_text(text):
+    ps = PorterStemmer()
+    text = re.sub('[^a-zA-Z]', ' ', str(text))
+    text = text.lower()
+    words = text.split()
+    words = [ps.stem(word) for word in words if word not in stop_words]
+    return ' '.join(words)
+
+# Load data from small CSV
 @st.cache_data
-def load_data(file_hash):
-    try:
-        df = pd.read_csv("small_file.csv")
-        
-        # Print out the actual columns to help debug
-        st.write(f"Found columns: {df.columns.tolist()}")
+def load_data():
+    df = pd.read_csv("small_file.csv")  # Make sure this file is in the same directory
+    return df
 
-        # Check if the necessary columns are present
-        text_col = next((col for col in df.columns if col.lower() == 'text'), None)
-        label_col = next((col for col in df.columns if col.lower() == 'label'), None)
-
-        # If not found, show an error message
-        if not text_col or not label_col:
-            st.error(f"❌ CSV must contain 'text' and 'label' columns. Found: {df.columns.tolist()}")
-            return pd.DataFrame()  # Return empty DataFrame
-
-        # Rename columns to expected names (in case of variations in column names)
-        df = df.rename(columns={text_col: "text", label_col: "label"})
-        return df
-
-    except Exception as e:
-        st.error(f"❌ Failed to load CSV: {e}")
-        return pd.DataFrame()
-
-# Train model with caching, avoid caching large models or data
+# Train the model
 @st.cache_resource
 def train_model(df):
-    if df.empty:
-        return None, None, 0.0
-
-    df['cleaned_text'] = df['text'].apply(clean_text)  # Assuming clean_text function is defined
+    df['cleaned_text'] = df['text'].apply(clean_text)
     X = df['cleaned_text']
     y = df['label']
 
@@ -58,26 +48,39 @@ def train_model(df):
     accuracy = accuracy_score(y_test, model.predict(X_test))
     return model, vectorizer, accuracy
 
-# Streamlit UI
-def app():
-    # Get the current hash of the file
-    file_hash = get_file_hash("small_file.csv")
-    
-    # Clear cache when the file changes
-    st.session_state.file_hash = file_hash
-    
-    # Load the data
-    df = load_data(st.session_state.file_hash)
+# Streamlit app interface
+def main():
+    st.title("📰 Fake News Detection Using NLP")
+    st.markdown("Paste a news article to see whether it's likely **Real** or **Fake**.")
 
-    if df.empty:
-        return
+    with st.spinner("Loading and training model..."):
+        df = load_data()
+        if df.empty:
+            st.error("CSV file is empty or not found.")
+            return
 
-    # Train the model
-    model, vectorizer, accuracy = train_model(df)
-    
-    if model:
-        st.write(f"Model Accuracy: {accuracy * 100:.2f}%")
+        model, vectorizer, accuracy = train_model(df)
+        if model is None:
+            st.error("Model training failed.")
+            return
+
+    st.success(f"✅ Model trained with **{accuracy:.2%}** accuracy.")
+
+    user_input = st.text_area("✏️ Enter news article text below:")
+
+    if st.button("🔍 Predict"):
+        if not user_input.strip():
+            st.warning("Please enter some text.")
+        else:
+            cleaned_input = clean_text(user_input)
+            input_vectorized = vectorizer.transform([cleaned_input]).toarray()
+            prediction = model.predict(input_vectorized)[0]
+
+            if prediction == 1:
+                st.error("🚨 This looks like **Fake News**.")
+            else:
+                st.success("✅ This appears to be **Real News**.")
 
 # Run the app
 if __name__ == "__main__":
-    app()
+    main()
