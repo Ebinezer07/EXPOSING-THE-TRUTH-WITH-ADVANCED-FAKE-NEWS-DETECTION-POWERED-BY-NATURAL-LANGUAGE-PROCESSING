@@ -9,13 +9,11 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 
-# Download NLTK stopwords
+# Download stopwords once
 nltk.download('stopwords')
-
-# Load stopwords once
 stop_words = set(stopwords.words('english'))
 
-# Function to clean text
+# Text cleaning function
 def clean_text(text):
     ps = PorterStemmer()
     text = re.sub('[^a-zA-Z]', ' ', str(text))
@@ -24,13 +22,13 @@ def clean_text(text):
     words = [ps.stem(word) for word in words if word not in stop_words]
     return ' '.join(words)
 
-# Load data from Google Drive
+# Load small local CSV file
 @st.cache_data
-def load_data()
-    df = pd.read_csv("/mnt/data/file-1tY7PdQu-2lY4gWC-ZIJnU1KGNMOQyMuT")
+def load_data():
+    df = pd.read_csv("small_file.csv")  # Make sure this file exists in the same directory
     return df
 
-# Train model
+# Train model with cached result
 @st.cache_resource
 def train_model(df):
     df['cleaned_text'] = df['text'].apply(clean_text)
@@ -48,29 +46,36 @@ def train_model(df):
     accuracy = accuracy_score(y_test, model.predict(X_test))
     return model, vectorizer, accuracy
 
-# Streamlit app
+# Streamlit App
 def main():
     st.title("📰 Fake News Detection Using NLP")
-    st.markdown("Enter a news article to find out if it's likely **Real** or **Fake**.")
+    st.markdown("Enter a news article below to check if it's **Real** or **Fake**.")
 
-    with st.spinner("Loading data and training model..."):
+    with st.spinner("📊 Loading data and training model..."):
         df = load_data()
+        if df.empty:
+            st.error("❌ Failed to load data.")
+            return
+
         model, vectorizer, accuracy = train_model(df)
+        if model is None:
+            st.error("❌ Model training failed.")
+            return
 
     st.success(f"✅ Model trained with **{accuracy:.2%}** accuracy.")
 
-    user_input = st.text_area("✏️ Paste news article here:")
+    user_input = st.text_area("✏️ Paste your news article here:")
 
     if st.button("🔍 Predict"):
-        if user_input.strip() == "":
-            st.warning("⚠️ Please enter a news article to predict.")
+        if not user_input.strip():
+            st.warning("⚠️ Please enter some text.")
         else:
             cleaned_input = clean_text(user_input)
             input_vectorized = vectorizer.transform([cleaned_input]).toarray()
             prediction = model.predict(input_vectorized)[0]
 
             if prediction == 1:
-                st.error("⚠️ This looks like **Fake News**.")
+                st.error("🚨 This looks like **Fake News**.")
             else:
                 st.success("✅ This appears to be **Real News**.")
 
