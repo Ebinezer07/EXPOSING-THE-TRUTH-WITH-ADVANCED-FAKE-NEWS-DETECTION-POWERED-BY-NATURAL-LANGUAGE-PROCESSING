@@ -26,10 +26,8 @@ def clean_text(text):
 
 # Load data from Google Drive
 @st.cache_data
-def load_data():
-    file_id = '1tY7PdQu-2lY4gWC-ZIJnU1KGNMOQyMuT'  # Replace with your actual file ID
-    url = f"https://drive.google.com/uc?export=download&id={file_id}"
-    df = pd.read_csv(url)
+def load_data()
+    df = pd.read_csv("/mnt/data/file-1tY7PdQu-2lY4gWC-ZIJnU1KGNMOQyMuT")
     return df
 
 # Train model
