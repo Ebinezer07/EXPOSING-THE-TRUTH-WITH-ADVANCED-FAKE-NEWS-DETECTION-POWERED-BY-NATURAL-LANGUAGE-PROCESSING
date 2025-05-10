@@ -25,7 +25,7 @@ def clean_text(text):
 @st.cache_data
 def load_data():
     file_id = '1tY7PdQu-2lY4gWC-ZIJnU1KGNMOQyMuT'  # Replace with your actual file ID
-    url = f"https://drive.google.com/uc?export=download&id=1tY7PdQu-2lY4gWC-ZIJnU1KGNMOQyMuT
+    url = "https://drive.google.com/uc?export=download&id=1tY7PdQu-2lY4gWC-ZIJnU1KGNMOQyMuT
     df = pd.read_csv(url)
     return df
 
