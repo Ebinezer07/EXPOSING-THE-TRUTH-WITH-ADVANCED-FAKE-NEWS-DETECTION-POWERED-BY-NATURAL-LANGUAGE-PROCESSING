@@ -20,11 +20,31 @@ def clean_text(text):
     return ' '.join(words)
 
 # Load pre-trained model and vectorizer
-@st.cache_resource
-def load_model():
-    model = joblib.load("fake_news_model.pkl")
-    vectorizer = joblib.load("vectorizer.pkl")
-    return model, vectorizer
+from transformers import pipeline
+
+# Load a pre-trained BERT model for fake news detection
+from transformers import pipeline
+
+# Load BERT-based fake news classifier
+classifier = pipeline("text-classification", model="mrm8488/bert-tiny-finetuned-fake-news")
+
+# Get user input
+text = input("Enter a news headline or article snippet:\n")
+
+# Predict using the classifier
+result = classifier(text)[0]
+label = result['label']
+score = result['score']
+
+# Display the result
+print(f"\n🧠 Prediction: {label}")
+print(f"🔍 Confidence Score: {score:.2f}")
+
+if label == "FAKE":
+    print("❌ This article appears to be FAKE.")
+else:
+    print("✅ This article appears to be REAL.")
+
 
 # Streamlit interface
 def main():
