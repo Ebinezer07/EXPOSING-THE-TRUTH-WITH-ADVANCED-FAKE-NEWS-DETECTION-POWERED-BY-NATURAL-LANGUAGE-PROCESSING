@@ -20,25 +20,14 @@ def clean_text(text):
     return ' '.join(words)
 
 # Load pre-trained model and vectorizer
-from transformers import pipeline
+model = pickle.load(open('fake_news_model.pkl', 'rb'))
+vectorizer = pickle.load(open('vectorizer.pkl', 'rb'))
 
-# Load a pre-trained BERT model for fake news detection
-from transformers import pipeline
+text = [input("Enter your news text:\n")]
+vect = vectorizer.transform(text)
+result = model.predict(vect)
+print(result)
 
-# Load BERT-based fake news classifier
-classifier = pipeline("text-classification", model="mrm8488/bert-tiny-finetuned-fake-news")
-
-# Get user input
-text = input("Enter a news headline or article snippet:\n")
-
-# Predict using the classifier
-result = classifier(text)[0]
-label = result['label']
-score = result['score']
-
-# Display the result
-print(f"\n🧠 Prediction: {label}")
-print(f"🔍 Confidence Score: {score:.2f}")
 
 if label == "FAKE":
     print("❌ This article appears to be FAKE.")
