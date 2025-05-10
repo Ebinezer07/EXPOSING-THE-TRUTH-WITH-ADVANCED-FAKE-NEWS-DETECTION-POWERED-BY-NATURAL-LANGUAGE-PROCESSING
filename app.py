@@ -20,12 +20,22 @@ def clean_text(text):
     return ' '.join(words)
 
 # Load pre-trained model and vectorizer
+import pickle
+
+# Load the trained model and vectorizer
 model = pickle.load(open('fake_news_model.pkl', 'rb'))
 vectorizer = pickle.load(open('vectorizer.pkl', 'rb'))
 
+# Get user input
 text = [input("Enter your news text:\n")]
+
+# Transform the input text using the vectorizer
 vect = vectorizer.transform(text)
+
+# Predict using the model
 result = model.predict(vect)
+
+# Display the result
 print(result)
 
 
