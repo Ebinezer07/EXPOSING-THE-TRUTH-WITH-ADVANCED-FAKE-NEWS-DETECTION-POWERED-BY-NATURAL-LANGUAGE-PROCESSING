@@ -1,19 +1,50 @@
 import streamlit as st
-from transformers import pipeline
+import re
+import nltk
+from nltk.corpus import stopwords
+from nltk.stem import PorterStemmer
+import tensorflow as tf
+import pickle
 
-# Cache the model to avoid reloading on every prediction
+# Download necessary NLTK resources
+nltk.download('stopwords')
+
+# Initialize stopwords and stemmer
+stop_words = set(stopwords.words('english'))
+ps = PorterStemmer()
+
+# Preprocessing function (text cleaning and stemming)
+def clean_text(text):
+    # Remove non-alphabetic characters
+    text = re.sub(r'[^a-zA-Z]', ' ', text)
+    text = text.lower()
+    words = text.split()
+    
+    # Remove stopwords and apply stemming
+    words = [ps.stem(word) for word in words if word not in stop_words]
+    
+    # Return the cleaned text
+    return ' '.join(words)
+
+# Load the model (update the path to the model based on your setup)
 @st.cache_resource
 def load_model():
-    # Load the pre-trained BERT model for fake news detection from Hugging Face
-    return pipeline("text-classification", model="mrm8488/bert-tiny-finetuned-fake-news")
+    try:
+        # Replace with the correct model file (e.g., a Keras model or a pickle model)
+        model = tf.keras.models.load_model('path_to_model/fake_news_model.h5')
+        return model
+    except:
+        # If it's a pickle model, load it like this:
+        model = pickle.load(open('path_to_model/fake_news_model.pkl', 'rb'))
+        return model
 
-# Streamlit interface
+# Streamlit Interface
 def main():
     # Load the pre-trained model
-    classifier = load_model()
+    model = load_model()
 
     # Set the title and description of the app
-    st.title("📰 Fake News Detector (BERT-based)")
+    st.title("📰 Fake News Detector (Custom Model)")
     st.markdown("Paste a news article to detect if it's **Real** or **Fake**.")
 
     # Input field for news article
@@ -24,27 +55,25 @@ def main():
         if not user_input.strip():
             st.warning("Please enter some text.")
         else:
-            # Show loading spinner
             with st.spinner("Analyzing... Please wait."):
 
-                # Get prediction from the BERT model
-                result = classifier(user_input)[0]
+                # Preprocess the input text
+                cleaned_input = clean_text(user_input)
 
-                # Extract label (prediction) and confidence score
-                label = result['label']
-                score = result['score']
+                # If the model needs a vectorized input (e.g., TF-IDF or similar), vectorize the cleaned input here:
+                # For example, if using TF-IDF vectorizer:
+                # input_vectorized = vectorizer.transform([cleaned_input])
 
-                # Display the prediction result
-                st.write(f"🧠 **Prediction**: {label}")
-                st.write(f"🔍 **Confidence Score**: {score:.2f}")
+                # Make prediction using the model
+                prediction = model.predict([cleaned_input])  # Modify this line if needed based on your model
 
-                # Display the result in a user-friendly format
-                if label == "FAKE":
+                # Since the model's output could be either a probability or label, adjust the prediction handling
+                if prediction == 1:
                     st.error("🚨 This looks like **Fake News**.")
                 else:
                     st.success("✅ This appears to be **Real News**.")
 
-    # Clear button to reset the input field
+    # Clear button to reset input field
     if st.button("❌ Clear Text"):
         st.experimental_rerun()
 
