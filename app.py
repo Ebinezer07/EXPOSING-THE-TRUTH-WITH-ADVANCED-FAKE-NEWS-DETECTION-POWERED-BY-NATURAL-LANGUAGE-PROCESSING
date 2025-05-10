@@ -12,20 +12,23 @@ from sklearn.metrics import accuracy_score
 # Download NLTK stopwords
 nltk.download('stopwords')
 
+# Load stopwords once
+stop_words = set(stopwords.words('english'))
+
 # Function to clean text
 def clean_text(text):
     ps = PorterStemmer()
     text = re.sub('[^a-zA-Z]', ' ', str(text))
     text = text.lower()
     words = text.split()
-    words = [ps.stem(word) for word in words if word not in stopwords.words('english')]
+    words = [ps.stem(word) for word in words if word not in stop_words]
     return ' '.join(words)
 
 # Load data from Google Drive
 @st.cache_data
 def load_data():
     file_id = '1tY7PdQu-2lY4gWC-ZIJnU1KGNMOQyMuT'  # Replace with your actual file ID
-    url = "https://drive.google.com/uc?export=download&id=1tY7PdQu-2lY4gWC-ZIJnU1KGNMOQyMuT
+    url = f"https://drive.google.com/uc?export=download&id={file_id}"
     df = pd.read_csv(url)
     return df
 
@@ -56,19 +59,22 @@ def main():
         df = load_data()
         model, vectorizer, accuracy = train_model(df)
 
-    st.success(f"Model trained with **{accuracy:.2%}** accuracy.")
+    st.success(f"✅ Model trained with **{accuracy:.2%}** accuracy.")
 
     user_input = st.text_area("✏️ Paste news article here:")
 
     if st.button("🔍 Predict"):
-        cleaned_input = clean_text(user_input)
-        input_vectorized = vectorizer.transform([cleaned_input]).toarray()
-        prediction = model.predict(input_vectorized)[0]
-
-        if prediction == 1:
-            st.error("⚠️ This looks like **Fake News**.")
+        if user_input.strip() == "":
+            st.warning("⚠️ Please enter a news article to predict.")
         else:
-            st.success("✅ This appears to be **Real News**.")
+            cleaned_input = clean_text(user_input)
+            input_vectorized = vectorizer.transform([cleaned_input]).toarray()
+            prediction = model.predict(input_vectorized)[0]
+
+            if prediction == 1:
+                st.error("⚠️ This looks like **Fake News**.")
+            else:
+                st.success("✅ This appears to be **Real News**.")
 
 if __name__ == "__main__":
     main()
