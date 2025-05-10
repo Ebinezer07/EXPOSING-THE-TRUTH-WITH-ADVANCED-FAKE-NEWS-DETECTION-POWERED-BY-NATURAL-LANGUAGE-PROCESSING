@@ -1,36 +1,34 @@
-import streamlit as st
-import pandas as pd
-import re
-import nltk
-from nltk.corpus import stopwords
-from nltk.stem.porter import PorterStemmer
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score
-
-# Download stopwords once
-nltk.download('stopwords')
-stop_words = set(stopwords.words('english'))
-
-# Text cleaning function
-def clean_text(text):
-    ps = PorterStemmer()
-    text = re.sub('[^a-zA-Z]', ' ', str(text))
-    text = text.lower()
-    words = text.split()
-    words = [ps.stem(word) for word in words if word not in stop_words]
-    return ' '.join(words)
-
-# Load small local CSV file
+# Load small local CSV file with validation
 @st.cache_data
 def load_data():
-    df = pd.read_csv("small_file.csv")  # Make sure this file exists in the same directory
-    return df
+    try:
+        df = pd.read_csv("small_file.csv")
+        # Attempt to auto-detect correct column names
+        expected_cols = df.columns.str.lower().tolist()
 
-# Train model with cached result
+        # Map similar column names
+        text_col = next((col for col in df.columns if col.lower() == 'text'), None)
+        label_col = next((col for col in df.columns if col.lower() == 'label'), None)
+
+        # If not found, raise an error
+        if not text_col or not label_col:
+            st.error(f"❌ CSV must contain 'text' and 'label' columns. Found: {df.columns.tolist()}")
+            return pd.DataFrame()  # Return empty DataFrame
+
+        # Rename columns to expected names
+        df = df.rename(columns={text_col: "text", label_col: "label"})
+        return df
+
+    except Exception as e:
+        st.error(f"❌ Failed to load CSV: {e}")
+        return pd.DataFrame()
+
+# Train model with cleaned column names
 @st.cache_resource
 def train_model(df):
+    if df.empty:
+        return None, None, 0.0
+
     df['cleaned_text'] = df['text'].apply(clean_text)
     X = df['cleaned_text']
     y = df['label']
@@ -45,39 +43,3 @@ def train_model(df):
 
     accuracy = accuracy_score(y_test, model.predict(X_test))
     return model, vectorizer, accuracy
-
-# Streamlit App
-def main():
-    st.title("📰 Fake News Detection Using NLP")
-    st.markdown("Enter a news article below to check if it's **Real** or **Fake**.")
-
-    with st.spinner("📊 Loading data and training model..."):
-        df = load_data()
-        if df.empty:
-            st.error("❌ Failed to load data.")
-            return
-
-        model, vectorizer, accuracy = train_model(df)
-        if model is None:
-            st.error("❌ Model training failed.")
-            return
-
-    st.success(f"✅ Model trained with **{accuracy:.2%}** accuracy.")
-
-    user_input = st.text_area("✏️ Paste your news article here:")
-
-    if st.button("🔍 Predict"):
-        if not user_input.strip():
-            st.warning("⚠️ Please enter some text.")
-        else:
-            cleaned_input = clean_text(user_input)
-            input_vectorized = vectorizer.transform([cleaned_input]).toarray()
-            prediction = model.predict(input_vectorized)[0]
-
-            if prediction == 1:
-                st.error("🚨 This looks like **Fake News**.")
-            else:
-                st.success("✅ This appears to be **Real News**.")
-
-if __name__ == "__main__":
-    main()
